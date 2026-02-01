@@ -1,265 +1,206 @@
-import { useState, useEffect } from 'react'
-import { supabase } from './supabaseClient'
-import { Users, AlertCircle, RefreshCw, Calendar, History, LogOut, CheckCircle, XCircle } from 'lucide-react'
+import React, { useState, useEffect } from 'react';
+import { supabase } from './supabaseClient';
 
-// --- COMPONENT 1: AUTH SCREEN ---
-function Auth() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [isSignUp, setIsSignUp] = useState(false)
-
-  const handleAuth = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password })
-      if (error) alert(error.message)
-      else alert('Account created! Logging you in...')
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) alert(error.message)
-    }
-    setLoading(false)
-  }
-
-  return (
-    <div className="flex h-screen items-center justify-center bg-zinc-100 relative">
-      <div className="bg-white p-8 rounded-2xl shadow-2xl w-96 border border-zinc-200 z-10">
-        <div className="text-center mb-8">
-            <h1 className="text-4xl font-black text-zinc-900 tracking-tighter mb-1">SmartMess</h1>
-            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">Team ODD10UT • Campus Dining</p>
-        </div>
-        
-        <form onSubmit={handleAuth} className="space-y-4">
-          <div>
-            <label className="text-xs font-bold text-zinc-500 uppercase ml-1">University Email</label>
-            <input
-              className="w-full p-3 mt-1 border border-zinc-200 rounded-xl focus:ring-4 focus:ring-yellow-100 focus:border-yellow-400 outline-none bg-zinc-50 transition"
-              type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Password</label>
-            <input
-              className="w-full p-3 mt-1 border border-zinc-200 rounded-xl focus:ring-4 focus:ring-yellow-100 focus:border-yellow-400 outline-none bg-zinc-50 transition"
-              type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          <button
-            className="w-full bg-yellow-400 hover:bg-yellow-500 text-zinc-900 py-3.5 rounded-xl font-black uppercase tracking-wider shadow-lg shadow-yellow-200 transform active:scale-95 transition-all"
-            disabled={loading}
-          >
-            {loading ? 'Verifying...' : (isSignUp ? 'Create ID' : 'Sign In')}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <button onClick={() => setIsSignUp(!isSignUp)} className="text-xs text-zinc-500 hover:text-zinc-900 font-bold uppercase tracking-tight">
-            {isSignUp ? 'Switch to Login' : 'Need an Account? Register'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// --- COMPONENT 2: STUDENT DASHBOARD ---
-function StudentDashboard({ session }) {
-  const [leaves, setLeaves] = useState([])
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    fetchHistory()
-    const channel = supabase.channel('student-view').on('postgres_changes', { event: '*', schema: 'public', table: 'leaves' }, () => fetchHistory()).subscribe()
-    return () => supabase.removeChannel(channel)
-  }, [])
-
-  async function fetchHistory() {
-    const { data } = await supabase.from('leaves').select('*').eq('student_id', session.user.id).order('created_at', { ascending: false })
-    if (data) setLeaves(data)
-  }
-
-  async function applyLeave(e) {
-    e.preventDefault()
-    setLoading(true)
-    const { error } = await supabase.from('leaves').insert([{ student_id: session.user.id, start_date: startDate, end_date: endDate, status: 'pending' }])
-    if (!error) { setStartDate(''); setEndDate(''); alert('Request Sent!') }
-    setLoading(false)
-  }
-
-  return (
-    <div className="min-h-screen bg-zinc-50 pb-20">
-        <div className="bg-zinc-900 text-white px-6 py-8 shadow-xl">
-            <div className="max-w-md mx-auto flex justify-between items-center">
-                <div>
-                    <h1 className="text-xl font-black text-yellow-400 uppercase tracking-tighter">Nithis Pandiyan</h1>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">CSE (IoT) • 24110332</p>
-                </div>
-                <button onClick={() => supabase.auth.signOut()} className="p-2 bg-zinc-800 text-zinc-400 rounded-lg hover:text-red-400 transition">
-                    <LogOut size={20} />
-                </button>
-            </div>
-        </div>
-
-      <div className="max-w-md mx-auto p-6 space-y-8">
-        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-zinc-200 border border-zinc-100">
-            <h2 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-                <Calendar className="text-yellow-500" size={18}/> New Leave
-            </h2>
-            <form onSubmit={applyLeave} className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-[10px] font-black text-zinc-400 uppercase">Start</label>
-                        <input type="date" required className="w-full mt-1 p-3 bg-zinc-50 border border-zinc-200 rounded-xl font-bold text-sm outline-none focus:border-yellow-500 transition"
-                        value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                    </div>
-                    <div>
-                        <label className="text-[10px] font-black text-zinc-400 uppercase">End</label>
-                        <input type="date" required className="w-full mt-1 p-3 bg-zinc-50 border border-zinc-200 rounded-xl font-bold text-sm outline-none focus:border-yellow-500 transition"
-                        value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                    </div>
-                </div>
-                <button disabled={loading} className="w-full bg-yellow-400 text-zinc-900 py-4 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-yellow-100 hover:bg-yellow-500 transition-all active:scale-95">
-                    {loading ? 'Submitting...' : 'Apply Leave'}
-                </button>
-            </form>
-        </div>
-
-        <div>
-            <h3 className="text-zinc-400 font-black text-[10px] uppercase tracking-[0.2em] mb-4">Request Log</h3>
-            <div className="space-y-3">
-            {leaves.map((leave) => (
-                <div key={leave.id} className="bg-white p-4 rounded-xl border border-zinc-100 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                        <div className={`w-2 h-10 rounded-full ${leave.status === 'approved' ? 'bg-yellow-400' : 'bg-zinc-200'}`}></div>
-                        <div>
-                            <p className="font-black text-zinc-800 text-sm tracking-tight">{leave.start_date} — {leave.end_date}</p>
-                            <p className="text-[10px] text-zinc-400 font-bold uppercase">{leave.status}</p>
-                        </div>
-                    </div>
-                </div>
-            ))}
-            </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// --- COMPONENT 3: ADMIN DASHBOARD ---
-function AdminDashboard() {
-  const [totalStudents] = useState(450)
-  const [activeLeaves, setActiveLeaves] = useState(0)
-  const [pendingRequests, setPendingRequests] = useState([])
-  
-  useEffect(() => {
-    fetchStats(); fetchRequests()
-    const channel = supabase.channel('admin-view').on('postgres_changes', { event: '*', schema: 'public', table: 'leaves' }, () => { fetchStats(); fetchRequests() }).subscribe()
-    return () => supabase.removeChannel(channel)
-  }, [])
-
-  async function fetchStats() {
-    const today = new Date().toISOString().split('T')[0]
-    const { count } = await supabase.from('leaves').select('*', { count: 'exact', head: true }).lte('start_date', today).gte('end_date', today).eq('status', 'approved')
-    setActiveLeaves(count || 0)
-  }
-
-  async function fetchRequests() {
-    const { data } = await supabase.from('leaves').select('*, profiles:student_id (email)').eq('status', 'pending').order('created_at', { ascending: true })
-    if (data) setPendingRequests(data)
-  }
-
-  async function updateStatus(id, newStatus) {
-    await supabase.from('leaves').update({ status: newStatus }).eq('id', id)
-  }
-
-  return (
-    <div className="min-h-screen bg-zinc-100 p-8">
-      <div className="max-w-4xl mx-auto">
-        <header className="flex justify-between items-center mb-12">
-          <h1 className="text-3xl font-black text-zinc-900 tracking-tighter italic">ADMIN<span className="text-yellow-500">.CORE</span></h1>
-          <button onClick={() => supabase.auth.signOut()} className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-red-500 transition">Logout</button>
-        </header>
-
-        <div className="bg-zinc-900 text-white p-10 rounded-3xl shadow-2xl mb-12 flex justify-between items-center relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-yellow-400 rounded-full blur-[100px] opacity-20"></div>
-            <div>
-               <h3 className="text-yellow-500 font-black uppercase text-[10px] tracking-[0.3em] mb-2">Expected Headcount</h3>
-               <div className="flex items-baseline gap-4">
-                 <span className="text-7xl font-black">{totalStudents - activeLeaves}</span>
-                 <span className="text-zinc-500 font-bold uppercase tracking-widest text-sm">Students</span>
-               </div>
-            </div>
-            <div className="text-right">
-                <p className="text-zinc-500 text-[10px] font-black uppercase mb-1">Active Absences</p>
-                <p className="text-2xl font-black text-white">{activeLeaves}</p>
-            </div>
-        </div>
-
-        <h2 className="text-xs font-black text-zinc-400 uppercase tracking-[0.3em] mb-6">Pending Approvals</h2>
-        <div className="space-y-4">
-            {pendingRequests.map((req) => (
-              <div key={req.id} className="bg-white p-6 rounded-2xl border border-zinc-200 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center font-black text-zinc-400 uppercase tracking-tighter">
-                        {req.profiles?.email?.charAt(0)}
-                    </div>
-                    <div>
-                        <h3 className="font-black text-zinc-900 text-lg tracking-tight">{req.profiles?.email?.split('@')[0]}</h3>
-                        <p className="text-xs text-zinc-400 font-bold">{req.start_date} to {req.end_date}</p>
-                    </div>
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={() => updateStatus(req.id, 'rejected')} className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-red-500 transition">Reject</button>
-                  <button onClick={() => updateStatus(req.id, 'approved')} className="px-8 py-3 text-[10px] font-black uppercase tracking-widest bg-yellow-400 text-zinc-900 rounded-xl hover:bg-yellow-500 shadow-lg shadow-yellow-100">Approve</button>
-                </div>
-              </div>
-            ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// --- MAIN APP COMPONENT ---
+// --- 1. MAIN APP CONTROLLER ---
 export default function App() {
   const [session, setSession] = useState(null);
-  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // UPDATED: Sets the Browser Tab Name
-    document.title = "SmartMess";
+  // --- CONFIG: ENSURE THIS MATCHES YOUR LOGIN EMAIL EXACTLY ---
+  const ADMIN_EMAIL = 'nithispandiyan24110332@snuchennai.edu.in'; 
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+  useEffect(() => {
+    // Check initial session
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
-      if (session) fetchRole(session.user.id);
-      else setLoading(false);
-    });
+      setLoading(false);
+    };
+    getSession();
+
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session) fetchRole(session.user.id);
-      else { setRole(null); setLoading(false); }
+      setLoading(false);
     });
+
     return () => subscription.unsubscribe();
   }, []);
 
-  async function fetchRole(userId) {
-    const { data } = await supabase.from('profiles').select('role').eq('id', userId).single();
-    if (data) setRole(data.role);
-    setLoading(false);
+  if (loading) return (
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-500 font-black tracking-widest text-xs">
+      INITIALIZING SMARTMESS...
+    </div>
+  );
+
+  if (!session) return <AuthPage />;
+
+  // Case-insensitive check to prevent login fails
+  const isUserAdmin = session.user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+  return isUserAdmin ? <AdminDashboard /> : <StudentLeavePage user={session.user} />;
+}
+
+// --- 2. AUTH PAGE ---
+function AuthPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    const { error } = isSignUp 
+      ? await supabase.auth.signUp({ email, password }) 
+      : await supabase.auth.signInWithPassword({ email, password });
+    
+    if (error) alert(error.message);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-zinc-100 p-4 font-sans">
+      <div className="max-w-md w-full bg-white p-12 rounded-[3rem] shadow-2xl border border-zinc-200">
+        <h1 className="text-4xl font-black text-zinc-900 tracking-tighter italic text-center mb-10 uppercase">Smart Mess</h1>
+        <form onSubmit={handleAuth} className="space-y-4">
+          <input type="email" placeholder="University Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-5 py-4 bg-zinc-50 border rounded-2xl outline-none" required />
+          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-5 py-4 bg-zinc-50 border rounded-2xl outline-none" required />
+          <button className="w-full py-5 bg-zinc-900 text-white font-black rounded-2xl uppercase tracking-widest hover:bg-zinc-800 transition-all">
+            {isSignUp ? 'Sign Up' : 'Login'}
+          </button>
+        </form>
+        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-6 text-xs font-bold text-zinc-400 hover:text-zinc-900 underline">
+          {isSignUp ? "Already have an account? Login" : "Need an account? Sign Up"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- 3. STUDENT PAGE ---
+function StudentLeavePage({ user }) {
+  const [start, setStart] = useState('');
+  const [end, setEnd] = useState('');
+  const [reason, setReason] = useState('');
+  const [status, setStatus] = useState(null);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const studentId = user.email.split('@')[0];
+    const { error } = await supabase.from('leaves').insert([{ 
+      student_id: studentId, 
+      start_date: start, 
+      end_date: end, 
+      reason: reason, 
+      status: 'pending' 
+    }]);
+    if (error) alert(error.message);
+    else {
+      setStatus("Submitted successfully!");
+      setStart(''); setEnd(''); setReason('');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-50 p-6 flex flex-col items-center justify-center">
+      <div className="max-w-md w-full bg-white p-10 rounded-[2.5rem] shadow-xl border border-zinc-200">
+        <div className="flex justify-between mb-8">
+          <h1 className="text-2xl font-black italic">APPLY LEAVE</h1>
+          <button onClick={() => supabase.auth.signOut()} className="text-[10px] font-black bg-zinc-100 px-4 py-2 rounded-full">LOGOUT</button>
+        </div>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="w-full p-4 bg-zinc-50 border rounded-xl" required />
+            <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="w-full p-4 bg-zinc-50 border rounded-xl" required />
+          </div>
+          <textarea placeholder="Reason for leave" value={reason} onChange={(e) => setReason(e.target.value)} className="w-full p-4 bg-zinc-50 border rounded-xl h-24" />
+          <button className="w-full py-4 bg-zinc-900 text-white font-black rounded-xl uppercase shadow-lg hover:bg-zinc-800 transition-all">Submit Request</button>
+        </form>
+        {status && <p className="mt-4 text-center text-green-600 font-bold">{status}</p>}
+      </div>
+    </div>
+  );
+}
+
+// --- 4. ADMIN DASHBOARD ---
+function AdminDashboard() {
+  const [pending, setPending] = useState([]);
+  const [activeLeaves, setActiveLeaves] = useState(0);
+  
+  const TOTAL_STUDENTS = 500;
+  const KG_SAVED_PER_STUDENT = 0.45;
+
+  useEffect(() => {
+    fetchData();
+    const channel = supabase.channel('realtime').on('postgres_changes', { event: '*', schema: 'public', table: 'leaves' }, fetchData).subscribe();
+    return () => supabase.removeChannel(channel);
+  }, []);
+
+  async function fetchData() {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Fetch pending requests
+    const { data } = await supabase.from('leaves').select('*').eq('status', 'pending').order('created_at', { ascending: false });
+    if (data) setPending(data);
+
+    // Fetch approved leaves for today
+    const { count } = await supabase.from('leaves').select('*', { count: 'exact', head: true })
+      .eq('status', 'approved')
+      .lte('start_date', today)
+      .gte('end_date', today);
+    setActiveLeaves(count || 0);
   }
 
-  if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-zinc-900">
-        <div className="w-12 h-1 border-t-2 border-yellow-400 animate-pulse"></div>
-        <p className="text-yellow-400 font-black tracking-[0.5em] text-[10px] uppercase mt-4">Syncing SmartMess</p>
+  async function updateStatus(id, status) {
+    await supabase.from('leaves').update({ status }).eq('id', id);
+    fetchData();
+  }
+
+  return (
+    <div className="min-h-screen bg-zinc-50 p-10 font-sans">
+      <div className="max-w-5xl mx-auto">
+        <header className="flex justify-between items-center mb-10">
+          <h1 className="text-3xl font-black italic tracking-tighter">WARDEN PANEL</h1>
+          <button onClick={() => supabase.auth.signOut()} className="bg-zinc-900 text-white px-8 py-3 rounded-full font-black text-xs uppercase">LOGOUT</button>
+        </header>
+
+        {/* Smart Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <div className="bg-white p-8 rounded-[2rem] border border-zinc-200 shadow-sm">
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Plates to Prepare</p>
+            <h2 className="text-5xl font-black text-zinc-900 mt-2">{TOTAL_STUDENTS - activeLeaves}</h2>
+          </div>
+          <div className="bg-zinc-900 p-8 rounded-[2rem] shadow-2xl text-white">
+            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Active Leaves Today</p>
+            <h2 className="text-5xl font-black mt-2">{activeLeaves}</h2>
+          </div>
+          <div className="bg-white p-8 rounded-[2rem] border border-zinc-200 shadow-sm">
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Waste Saved Today</p>
+            <h2 className="text-5xl font-black text-zinc-900 mt-2">{(activeLeaves * KG_SAVED_PER_STUDENT).toFixed(1)}kg</h2>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-[2rem] border border-zinc-200 overflow-hidden shadow-2xl">
+          <table className="w-full text-left">
+            <thead className="bg-zinc-50 text-[10px] font-black uppercase text-zinc-400 tracking-widest">
+              <tr><th className="px-8 py-6">Student</th><th className="px-8 py-6">Date Range</th><th className="px-8 py-6 text-right">Actions</th></tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {pending.map(req => (
+                <tr key={req.id} className="hover:bg-zinc-50">
+                  <td className="px-8 py-6 font-bold">{req.student_id}</td>
+                  <td className="px-8 py-6 text-sm text-zinc-500">{req.start_date} → {req.end_date}</td>
+                  <td className="px-8 py-6 text-right space-x-3">
+                    <button onClick={() => updateStatus(req.id, 'approved')} className="bg-green-100 text-green-700 px-4 py-2 rounded-xl text-[10px] font-black hover:bg-green-600 hover:text-white transition-all">APPROVE</button>
+                    <button onClick={() => updateStatus(req.id, 'rejected')} className="bg-red-100 text-red-700 px-4 py-2 rounded-xl text-[10px] font-black hover:bg-red-600 hover:text-white transition-all">REJECT</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {pending.length === 0 && (
+            <div className="p-20 text-center text-zinc-300 font-black uppercase tracking-widest">Queue Clear</div>
+          )}
+        </div>
+      </div>
     </div>
-  )
-  if (!session) return <Auth />
-  return role === 'admin' ? <AdminDashboard /> : <StudentDashboard session={session} />
+  );
 }
